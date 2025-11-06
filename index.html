@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sticky Notes — Single File</title>
+  <style>
+    :root{
+      --bg-1:#0f1220; /* deep */
+      --bg-2:#171a2b; /* card */
+      --text:#e8eaf6;
+      --muted:#9aa3b2;
+      --accent:#7c5cff;
+      --shadow: 0 10px 25px rgba(0,0,0,.35);
+      --note-shadow: 0 12px 20px rgba(0,0,0,.25);
+      --radius:16px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: radial-gradient(1200px 700px at 15% -10%, #1b1e33 0%, transparent 60%),
+                  radial-gradient(900px 600px at 120% 10%, #251f4d 0%, transparent 55%),
+                  linear-gradient(180deg, var(--bg-1), #0b0e1a 70%);
+      overflow:hidden;
+    }
+
+    header{
+      position:fixed; inset:16px 16px auto 16px; z-index:1000;
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:12px 16px; border-radius:var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      backdrop-filter: blur(10px);
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+    }
+
+    .title{
+      display:flex; gap:10px; align-items:center; font-weight:700; letter-spacing:.3px;
+    }
+    .dot{width:10px; height:10px; border-radius:999px; background:var(--accent); box-shadow:0 0 12px var(--accent)}
+    .subtitle{font-size:.85rem; color:var(--muted)}
+
+    .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    button, .select{
+      appearance:none; border:1px solid rgba(255,255,255,.1);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      color:var(--text); padding:10px 12px; border-radius:12px; cursor:pointer;
+      font-weight:600; letter-spacing:.2px; box-shadow: var(--shadow);
+    }
+    button:hover, .select:hover{border-color: rgba(255,255,255,.22)}
+
+    .select{display:flex; gap:6px; align-items:center}
+    .swatch{width:16px; height:16px; border-radius:6px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.15)}
+
+    #board{position:relative; width:100vw; height:100vh; padding:90px 20px 20px 20px}
+
+    .note{
+      --c:#ffd166;
+      position:absolute; top:100px; left:100px; width:260px; min-height:160px;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)), var(--c);
+      color:#1a1a1a; border-radius:14px; box-shadow: var(--note-shadow);
+      padding:12px 12px 40px 12px; border:1px solid rgba(0,0,0,.08);
+      user-select:none;
+    }
+    .note header{
+      position:relative; inset:auto; background:transparent; border:none; box-shadow:none; backdrop-filter:none; padding:6px 4px; gap:8px;
+    }
+    .note .drag-handle{cursor:grab; font-weight:700; color:rgba(0,0,0,.5); font-size:.9rem}
+    .note .btns{margin-left:auto; display:flex; gap:6px}
+    .note button{padding:6px 10px; border-radius:10px; box-shadow:none}
+    .note .content{margin-top:6px; padding:8px; background:rgba(255,255,255,.6); border-radius:10px; min-height:88px; outline:none; user-select:text}
+    .note .footer{position:absolute; left:10px; right:10px; bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:.8rem; color:rgba(0,0,0,.55)}
+
+    /* Responsive */
+    @media (max-width:600px){
+      .note{width:75vw}
+      header{inset:12px}
+      #board{padding-top:74px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <div class="dot"></div>
+      Sticky Notes
+      <span class="subtitle">Single file • autosaves • draggable</span>
+    </div>
+    <div class="controls">
+      <button id="add">➕ New note</button>
+      <button id="save">💾 Save now</button>
+      <button id="clear">🗑️ Clear all</button>
+      <div class="select" title="Default note color">
+        <div class="swatch" id="swatch"></div>
+        <select id="color">
+          <option value="#ffd166" selected>Sun</option>
+          <option value="#fdffb6">Lemon</option>
+          <option value="#caffbf">Mint</option>
+          <option value="#bdb2ff">Lavender</option>
+          <option value="#ffc6ff">Cotton</option>
+          <option value="#9bf6ff">Sky</option>
+          <option value="#ffadad">Coral</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main id="board" aria-label="Canvas for notes"></main>
+
+  <template id="note-template">
+    <section class="note" role="region" aria-label="Sticky note">
+      <header>
+        <div class="drag-handle">⋮⋮ Drag</div>
+        <div class="btns">
+          <button class="small duplicate" title="Duplicate">⧉</button>
+          <button class="small delete" title="Delete">✕</button>
+        </div>
+      </header>
+      <div class="content" contenteditable="true" spellcheck="true" placeholder="Type here..."></div>
+      <div class="footer">
+        <span class="time"></span>
+        <span class="hint">Double‑click to edit title</span>
+      </div>
+    </section>
+  </template>
+
+  <script>
+    (function(){
+      const board = document.getElementById('board');
+      const addBtn = document.getElementById('add');
+      const saveBtn = document.getElementById('save');
+      const clearBtn = document.getElementById('clear');
+      const colorSel = document.getElementById('color');
+      const swatch = document.getElementById('swatch');
+      const tpl = document.getElementById('note-template');
+
+      const LS_KEY = 'sticky-notes-v1';
+      let zCounter = 1;
+
+      swatch.style.background = colorSel.value;
+      colorSel.addEventListener('change', () => swatch.style.background = colorSel.value);
+
+      function now(){
+        const d = new Date();
+        return d.toLocaleString();
+      }
+
+      function createNote(data){
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        const content = node.querySelector('.content');
+        const time = node.querySelector('.time');
+        const del = node.querySelector('.delete');
+        const dup = node.querySelector('.duplicate');
+        node.style.setProperty('--c', (data && data.color) || colorSel.value);
+        node.style.left = (data && data.x) || (Math.random()* (window.innerWidth-320) + 20) + 'px';
+        node.style.top = (data && data.y) || (Math.random()* (window.innerHeight-260) + 90) + 'px';
+        node.style.zIndex = ++zCounter;
+        content.innerHTML = (data && data.html) || '';
+        time.textContent = (data && data.time) || now();
+
+        // Editing behavior
+        content.addEventListener('input', ()=>{
+          time.textContent = now();
+          queueSave();
+        });
+        content.addEventListener('focus', ()=> node.style.zIndex = ++zCounter);
+
+        // Delete
+        del.addEventListener('click', ()=>{ node.remove(); save(); });
+        // Duplicate
+        dup.addEventListener('click', ()=>{
+          const clone = serialize(node);
+          clone.x = parseFloat(clone.x)+20; clone.y = parseFloat(clone.y)+20;
+          addNote(clone);
+        });
+
+        // Dragging
+        const handle = node.querySelector('.drag-handle');
+        let drag = null;
+        handle.addEventListener('pointerdown', (e)=>{
+          drag = {ox:e.clientX - node.offsetLeft, oy:e.clientY - node.offsetTop};
+          node.setPointerCapture(e.pointerId);
+          node.style.cursor = 'grabbing';
+          node.style.zIndex = ++zCounter;
+        });
+        node.addEventListener('pointermove', (e)=>{
+          if(!drag) return;
+          const x = e.clientX - drag.ox; const y = e.clientY - drag.oy;
+          node.style.left = clamp(x, 6, window.innerWidth - node.offsetWidth - 6) + 'px';
+          node.style.top  = clamp(y, 80, window.innerHeight - node.offsetHeight - 6) + 'px';
+        });
+        node.addEventListener('pointerup', (e)=>{ if(drag){ drag=null; node.style.cursor='default'; save(); }});
+
+        // Bring to front when clicking anywhere on it
+        node.addEventListener('pointerdown', ()=> node.style.zIndex = ++zCounter);
+
+        // Double-click header to cycle color
+        handle.addEventListener('dblclick', ()=>{
+          const options = [...colorSel.options].map(o=>o.value);
+          const current = getComputedStyle(node).getPropertyValue('--c').trim();
+          const idx = options.indexOf(current);
+          node.style.setProperty('--c', options[(idx+1)%options.length]);
+          save();
+        });
+
+        board.appendChild(node);
+        return node;
+      }
+
+      function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+      function serialize(node){
+        return {
+          x: node.style.left,
+          y: node.style.top,
+          z: node.style.zIndex,
+          color: getComputedStyle(node).getPropertyValue('--c').trim(),
+          html: node.querySelector('.content').innerHTML,
+          time: node.querySelector('.time').textContent
+        };
+      }
+
+      function save(){
+        const data = [...board.querySelectorAll('.note')].map(serialize);
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+      }
+
+      let saveTimer = null;
+      function queueSave(){
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 400);
+      }
+
+      function addNote(data){ createNote(data); save(); }
+
+      function load(){
+        const raw = localStorage.getItem(LS_KEY);
+        if(!raw){ addNote(); addNote(); return; }
+        try{
+          const items = JSON.parse(raw);
+          items.forEach(addNote);
+        }catch(e){ console.warn('Bad save, resetting', e); localStorage.removeItem(LS_KEY); addNote(); }
+      }
+
+      // Buttons
+      addBtn.addEventListener('click', ()=> addNote());
+      saveBtn.addEventListener('click', save);
+      clearBtn.addEventListener('click', ()=>{
+        if(confirm('Delete all notes?')){ board.innerHTML=''; localStorage.removeItem(LS_KEY); }
+      });
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e)=>{
+        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
+        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='n'){ e.preventDefault(); addNote(); }
+      });
+
+      // Start
+      load();
+    })();
+  </script>
+</body>
+</html>
